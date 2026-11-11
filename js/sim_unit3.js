@@ -20,7 +20,7 @@
   function drawResistor(ctx, palette, x1, y1, x2, y2, label) {
     const x = (x1 + x2) / 2, y = (y1 + y2) / 2;
     const horizontal = y1 === y2;
-    const w = horizontal ? 70 : 25, h = horizontal ? 27 : 59;
+    const w = horizontal ? 100 : 25, h = horizontal ? 29 : 59;
     const leads = horizontal
       ? [[[x1, y], [x - w / 2, y]], [[x + w / 2, y], [x2, y]]]
       : [[[x, y1], [x, y - h / 2]], [[x, y + h / 2], [x, y2]]];
@@ -46,17 +46,11 @@
   }
 
   function text(ctx, value, x, y, color, align = "center") {
-    ctx.font = "600 14px system-ui, sans-serif";
+    ctx.font = "600 17px system-ui, sans-serif";
     ctx.fillStyle = color;
     ctx.textAlign = align;
     ctx.textBaseline = "alphabetic";
     ctx.fillText(value, x, y);
-  }
-
-  function fit(ctx, x, y, width, height, designWidth, designHeight) {
-    const scale = Math.min(width / designWidth, height / designHeight);
-    ctx.translate(x + (width - scale * designWidth) / 2, y + (height - scale * designHeight) / 2);
-    ctx.scale(scale, scale);
   }
 
   const quantity = (value, unit, precision = 2) => {
@@ -164,11 +158,11 @@
         ctx.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
         const s = solve(), palette = canvasPalette(stage);
-        const left = 76, right = 508, top = 83, bottom = 253;
+        const left = 45, right = 451, top = 75, bottom = 260;
         t += 0.02;
         ctx.save();
-        fit(ctx, 0, 0, W, H, 600, 312);
-        text(ctx, "Conexión " + { series: "en serie", parallel: "en paralelo", mixed: "mixta" }[mode], 300, 31, palette.ink);
+        fitDiagram(ctx, 0, 0, W, H, 550, 318);
+        text(ctx, "Conexión " + { series: "en serie", parallel: "en paralelo", mixed: "mixta" }[mode], 275, 25, palette.ink);
         drawBattery(ctx, palette, left, top, bottom, Vsrc);
         drawWire(ctx, [[left, bottom], [right, bottom]], palette.ink);
         if (mode === "series") {
@@ -191,12 +185,12 @@
             drawWire(ctx, [[left, top], [right, top]], palette.ink);
           }
           const branches = mode === "parallel"
-            ? [[205, 1, R1, s.I1], [357, 2, R2, s.I2], [right, 3, R3, s.I3]]
-            : [[335, 2, R2, s.I2], [right, 3, R3, s.I3]];
+            ? [[180, 1, R1, s.I1], [315, 2, R2, s.I2], [right, 3, R3, s.I3]]
+            : [[320, 2, R2, s.I2], [right, 3, R3, s.I3]];
           for (const [x, id, resistance, current] of branches) {
             drawResistor(ctx, palette, x, top, x, bottom, resistance + " Ω");
             text(ctx, "R" + id, x, top - 16, palette.muted);
-            text(ctx, quantity(current, "A"), x + 16, top + 34, palette.muted, "left");
+            text(ctx, quantity(current, "A", 1), x + 16, top + 34, palette.muted, "left");
             for (const y of [top, bottom]) {
               ctx.fillStyle = palette.ink;
               ctx.beginPath(); ctx.arc(x, y, 4, 0, 2 * Math.PI); ctx.fill();
@@ -204,7 +198,7 @@
             animateCurrent(ctx, [[[x, top + 4], [x, (top + bottom) / 2 - 34]]], current, t);
           }
         }
-        text(ctx, "Corriente total · " + quantity(s.It, "A"), 300, 291, palette.muted);
+        text(ctx, "Corriente total · " + quantity(s.It, "A"), 275, 296, palette.muted);
         ctx.restore();
 
         const balance = mode === "series" ? "I₁ = I₂ = I₃"
@@ -283,11 +277,11 @@
         ctx.clearRect(0, 0, W, H);
         const { current: I, terminal, power: P, loss } = sourceWithResistance(Vv, R, internal);
         const palette = canvasPalette(stage);
-        const stacked = W < 700;
+        const stacked = W / H < 1.42;
         t += 0.02;
 
         ctx.save();
-        fit(ctx, 0, 0, stacked ? W : W * 0.44, stacked ? H * 0.46 : H, 325, 224);
+        fitDiagram(ctx, 0, 0, stacked ? W : W * 0.44, stacked ? H * 0.46 : H, 285, 224);
         text(ctx, "Circuito de corriente directa", 162, 25, palette.ink);
         drawBattery(ctx, palette, 59, 59, 171, Vv);
         drawResistor(ctx, palette, 59, 59, 258, 59, "R · " + R + " Ω");
@@ -300,7 +294,7 @@
         ctx.restore();
 
         ctx.save();
-        fit(ctx, stacked ? 0 : W * 0.44, stacked ? H * 0.46 : 0,
+        fitDiagram(ctx, stacked ? 0 : W * 0.44, stacked ? H * 0.46 : 0,
           stacked ? W : W * 0.56, stacked ? H * 0.54 : H, 346, 240);
         const gx = 71, gy = 183, gw = 246, gh = 110;
         const voltageMax = 24;

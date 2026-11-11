@@ -1,6 +1,6 @@
 # ElectroSim · Laboratorio interactivo de Física II
 
-Abre `index.html` en Chrome, Edge o Firefox. La aplicación funciona de forma local y sin conexión. La barra superior abre **Inicio** y las tarjetas de cada unidad. En **Inicio** está la guía rápida de uso.
+Abre [ElectroSim en GitHub Pages](https://branpachman-lang.github.io/electrosim/) o abre `index.html` en Chrome, Edge o Firefox para usarlo sin conexión. La barra superior abre **Inicio** y las tarjetas de cada unidad. En **Inicio** está la guía rápida de uso.
 
 ## Cobertura del producto final
 
@@ -38,12 +38,15 @@ El código fuente, la guía web y este documento técnico están en la carpeta d
 
 El ejemplo RC aplica 5 V a un capacitor de 1000 µF a través de 1 kΩ. La constante de tiempo es 1 s. Con voltaje inicial cero, el capacitor alcanza aproximadamente 3,16 V al cabo de 1 s y se acerca a 5 V.
 
+Para medir la descarga, carga **LED con capacitor precargado** o **Motor con capacitor precargado** y pulsa **Simular**. Selecciona el capacitor para cambiar su capacitancia y su voltaje inicial. Selecciona el LED o el motor para ver el tiempo de encendido o de giro y graficar el brillo relativo o la velocidad en el osciloscopio.
+
 ## Fundamentos y métodos
 
 - **Electrostática.** Superposición de Coulomb con distancias en metros y conversión de nC a C. En el punto exacto de una carga no nula, el modelo es singular. La sección 2D usa las componentes de E en XY y el potencial en z = 0. Marching squares aproxima los contornos del plano. Marching tetrahedra aproxima las isosuperficies mediante una malla tridimensional. La posición, la resolución de la malla y el nivel elegido determinan qué porción de la superficie se ve.
 - **Trayectorias.** RK4 integra posición y velocidad usando la aceleración instantánea. El cálculo es clásico y está restringido a XY. La trayectoria eléctrica se detiene al acercarse a una carga o salir de la zona visible.
 - **Capacitores.** Placas paralelas ideales y dieléctrico uniforme. C = ε₀εᵣA/d, Q = CV y U = ½CV². E = V/d representa el campo uniforme entre placas. Al aislar las placas, la carga que tenían en ese momento se conserva.
 - **Circuitos.** El análisis nodal modificado aplica las leyes de Kirchhoff, combina nodos unidos por conductores ideales y establece una referencia por isla. En régimen DC, el capacitor ideal se comporta como circuito abierto. El transitorio usa Euler implícito, con I = C(V actual − V anterior)/Δt. El paso afecta la precisión. Las fuentes son continuas y los componentes son ideales. Las lecturas indeterminadas se marcan con un guion, por ejemplo si un lazo de cables permite varias distribuciones de corriente.
+- **LED y motor.** El LED usa un umbral directo editable y una pendiente equivalente a 10 Ω. El brillo relativo es proporcional a la corriente directa y vale 100 % a 20 mA. El motor de CC considera resistencia del bobinado, fuerza contraelectromotriz, inercia y rozamiento viscoso. Los tiempos corresponden al último intervalo continuo por encima de 1 % de brillo o 100 rpm. Los valores son estimaciones de los modelos y dependen del paso de integración.
 - **Magnetismo.** El imán usa un dipolo ideal. Para el cable se usa B = μ₀I/(2πr). El solenoide se modela como ocho espiras y el campo se calcula sumando contribuciones discretizadas de Biot–Savart. El flujo por una superficie plana en un campo uniforme es B·A·cos(θ), con θ medido respecto a la normal. En Lorentz, F = q(E + v × B). El radio en campos cruzados se calcula con la velocidad relativa a la deriva E × B/B².
 
 ## Arquitectura

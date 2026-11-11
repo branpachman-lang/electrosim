@@ -83,6 +83,57 @@ test("carga y descarga RC conservan el estado entre pasos", () => {
   close(solveCircuit(discharge, { dt: 0.01, previous }).results.get(4).volts, previous.get(4) / 1.01);
 });
 
+test("el LED conduce en directa y se atenúa con la descarga del capacitor", () => {
+  const led = part(3, "LED", 2, 0, 2);
+  const resistor = part(2, "R", 1, 2, 220);
+  const source = part(1, "V", 1, 0, 5);
+  const lit = solveCircuit([source, resistor, led]).results.get(3);
+  close(lit.amps, (5 - 2) / 230, 1e-8);
+  close(lit.brightness, 100 * lit.amps / 0.02, 1e-4);
+  assert.equal(solveCircuit([source, resistor, { ...led, a: 0, b: 2 }]).results.get(3).brightness, 0);
+  assert.equal(solveCircuit([{ ...source, value: 1 }, resistor, led]).results.get(3).brightness, 0);
+
+  const discharge = (capacitance) => {
+    const parts = [part(1, "C", 1, 0, capacitance, { initial: 5 }), resistor, led];
+    let previous, brightness = Infinity;
+    for (let step = 1; step <= 3000; step++) {
+      const solution = solveCircuit(parts, { dt: 0.01, previous });
+      const next = solution.results.get(3).brightness;
+      assert.ok(next <= brightness);
+      if (next < circuitActivityThresholds.LED) return step * 0.01;
+      brightness = next;
+      previous = solution.capacitorVoltages;
+    }
+    assert.fail("El brillo no cayó por debajo del umbral");
+  };
+  const duration = discharge(0.01);
+  close(duration, 0.01 * 230 * Math.log(3 / (0.0002 * 230)), 0.03);
+  close(discharge(0.02), 2 * duration, 0.05);
+});
+
+test("el motor arranca, pierde velocidad al descargarse el capacitor y responde a la carga", () => {
+  const motor = part(2, "M", 1, 0, 30);
+  const source = part(1, "V", 1, 0, 5);
+  const speed = (voltage, load = 1) =>
+    solveCircuit([{ ...source, value: voltage }, { ...motor, load }]).results.get(2).rpm;
+  close(speed(5), 625 * 60 / (2 * Math.PI));
+  close(speed(-5), -speed(5));
+  assert.ok(speed(5, 4) < speed(5));
+  assert.ok(speed(3) < speed(5));
+  const parts = [part(1, "C", 1, 0, 0.022, { initial: 5 }), motor];
+  let previous, motorSpeeds, peak = 0, rpm;
+  for (let i = 0; i < 1000; i++) {
+    const solution = solveCircuit(parts, { dt: 0.01, previous, motorSpeeds });
+    rpm = solution.results.get(2).rpm;
+    if (!i) assert.ok(rpm > 0 && rpm < 0.1 * speed(5));
+    peak = Math.max(peak, rpm);
+    ({ capacitorVoltages: previous, motorSpeeds } = solution);
+  }
+  assert.ok(peak > 3000);
+  assert.ok(Math.abs(rpm) < circuitActivityThresholds.M);
+  assert.ok(previous.get(1) < 0.1);
+});
+
 test("el dieléctrico conserva V conectado y conserva Q aislado", () => {
   const original = plateCapacitor(0.1, 0.002, 1, 12);
   const connected = plateCapacitor(0.1, 0.002, 2, 12);

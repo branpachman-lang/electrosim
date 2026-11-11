@@ -62,18 +62,18 @@
   }
 
   function createFieldView(cv, isActive) {
-    let yaw = -0.3, pitch = 0.56, zoom = 1;
+    const initialView = { yaw: -0.3, pitch: 0.56, zoom: 1 };
+    let { yaw, pitch, zoom } = initialView;
     let pointer = null;
     const { canvas, ctx } = cv;
-    const scale = () => Math.min(cv.cssW / 18, cv.cssH / 14) * zoom;
-    function projection(flat) {
+    function projection(flat, span) {
+      const fit = Math.min(cv.cssW / span[0], cv.cssH / span[1]);
       if (flat) {
-        const s = Math.min(cv.cssW / 18, cv.cssH / 14);
-        return ([x, y, z]) => [cv.cssW / 2 + x * s, cv.cssH / 2 - y * s, -z];
+        return ([x, y, z]) => [cv.cssW / 2 + x * fit, cv.cssH / 2 - y * fit, -z];
       }
       const cy = Math.cos(yaw), sy = Math.sin(yaw);
       const cp = Math.cos(pitch), sp = Math.sin(pitch);
-      const s = scale(), cx = cv.cssW / 2, centerY = cv.cssH / 2;
+      const s = fit * zoom, cx = cv.cssW / 2, centerY = cv.cssH / 2;
       return ([x, y, z]) => {
         const forward = x * sy + y * cy;
         return [cx + (x * cy - y * sy) * s, centerY - (z * cp + forward * sp) * s,
@@ -83,6 +83,10 @@
 
     function adjustZoom(factor) {
       zoom = Math.min(3, Math.max(0.5, zoom * factor));
+    }
+
+    function reset() {
+      ({ yaw, pitch, zoom } = initialView);
     }
     canvas.addEventListener("pointerdown", (e) => {
       if (!isActive() || e.button !== 0) return;
@@ -118,12 +122,13 @@
 
     let lastModel, lastView;
     function draw(model) {
-      const { lines = [], triangles = [], markers = [], caption = "", flat = false } = model;
+      const { lines = [], triangles = [], markers = [], caption = "", flat = false,
+        span = [18, 14], gridRadius = 6 } = model;
       const view = [cv.w, cv.h, cv.dpr, yaw, pitch, zoom, document.documentElement.dataset.theme].join("/");
       if (model === lastModel && view === lastView) return;
       lastModel = model;
       lastView = view;
-      const project = projection(flat);
+      const project = projection(flat, span);
       ctx.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
       ctx.clearRect(0, 0, cv.cssW, cv.cssH);
       function path(points) {
@@ -133,17 +138,18 @@
       }
       ctx.strokeStyle = "rgba(125,145,173,0.18)";
       ctx.lineWidth = 1;
-      for (let i = -6; i <= 6; i++) {
-        path([[i, -6, 0], [i, 6, 0]].map(project)); ctx.stroke();
-        path([[-6, i, 0], [6, i, 0]].map(project)); ctx.stroke();
+      for (let i = -gridRadius; i <= gridRadius; i++) {
+        path([[i, -gridRadius, 0], [i, gridRadius, 0]].map(project)); ctx.stroke();
+        path([[-gridRadius, i, 0], [gridRadius, i, 0]].map(project)); ctx.stroke();
       }
       const style = getComputedStyle(canvas);
-      ctx.font = "600 12px system-ui, sans-serif";
+      ctx.font = "600 14px system-ui, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.strokeStyle = style.getPropertyValue("--text-faint");
       ctx.fillStyle = ctx.strokeStyle;
-      for (const [name, end] of [["x", [6.6, 0, 0]], ["y", [0, 6.6, 0]], ["z", [0, 0, 5.2]]]) {
+      const axisEnd = gridRadius + 0.6;
+      for (const [name, end] of [["x", [axisEnd, 0, 0]], ["y", [0, axisEnd, 0]], ["z", [0, 0, gridRadius - 0.8]]]) {
         if (flat && name === "z") continue;
         const projected = project(end);
         path([project([0, 0, 0]), projected]);
@@ -164,7 +170,7 @@
         ctx.lineWidth = 0.45;
         ctx.stroke();
       }
-      for (const { points, color, width = 1.4, arrows = 0 } of lines) {
+      for (const { points, color, width = 1.7, arrows = 0 } of lines) {
         if (points.length < 2) continue;
         const projected = points.map(project);
         path(projected);
@@ -188,19 +194,23 @@
       orderedMarkers.sort((a, b) => b.screen[2] - a.screen[2]);
       for (const { screen: [x, y], color, text, selected } of orderedMarkers) {
         ctx.beginPath();
-        ctx.arc(x, y, selected ? 9 : 6, 0, 2 * Math.PI);
+        const radius = selected ? 11 : 8;
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
         ctx.fillStyle = color;
         ctx.fill();
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = selected ? 2 : 1;
         ctx.stroke();
         ctx.fillStyle = style.getPropertyValue("--text");
-        ctx.fillText(text, x + 11, y);
+        ctx.strokeStyle = style.getPropertyValue("--bg-canvas");
+        ctx.lineWidth = 4;
+        ctx.strokeText(text, x + radius + 5, y);
+        ctx.fillText(text, x + radius + 5, y);
       }
       ctx.fillStyle = style.getPropertyValue("--text-dim");
       ctx.fillText(caption, 14, 23, cv.cssW - 28);
     }
-    return { draw };
+    return { draw, adjustZoom, reset };
   }
 
   global.equipotentialSurfaces = equipotentialSurfaces;

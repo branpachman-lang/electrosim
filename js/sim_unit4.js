@@ -54,13 +54,13 @@
       root.append(stage, controls);
       container.appendChild(root);
 
-      let source = "magnet", is3D = false, current = 5, moment = 5, direction = 1;
+      let source = "magnet", is3D = true, current = 5, moment = 5, direction = 1;
       let distance = 2;
       let dirty = true, model;
       const handle = buildControls(controls, [
-        { type: "segmented", key: "view", label: "Vista", group: "Configuración", value: 0,
+        { type: "segmented", key: "view", label: "Vista", group: "Configuración", value: 1,
           options: [{ label: "2D", value: false }, { label: "3D", value: true }],
-          onChange: (v) => { is3D = v; dirty = true; cv.canvas.tabIndex = v ? 0 : -1; } },
+          onChange: (v) => { is3D = v; dirty = true; syncView(); } },
         { type: "segmented", key: "source", label: "Fuente", group: "none", value: 0,
           options: [{ label: "Imán", value: "magnet" }, { label: "Cable", value: "wire" }, { label: "Solenoide", value: "solenoid" }],
           onChange: (v) => {
@@ -86,7 +86,7 @@
           { label: "|B| de referencia", key: "B", unit: "T" },
         ] },
         { type: "formula", group: "Modelo", html: "Imán: dipolo ideal<br/>Cable: B = μ₀I / (2πr)<br/>Solenoide finito: suma de Biot–Savart" },
-        { type: "hint", group: "none", text: "En 3D, arrastra para girar y usa la rueda para acercar. Invierte el sentido para comprobar la dirección de las flechas." },
+        { type: "hint", group: "none", text: "En 3D, arrastra el dibujo para girar. Invierte el sentido para comprobar cómo cambian las flechas del campo." },
       ]);
       function syncControls() {
         handle.current.element.hidden = source === "magnet";
@@ -96,9 +96,30 @@
       syncControls();
 
       const cv = createCanvas(stage);
-      cv.canvas.style.touchAction = "none";
-      cv.canvas.setAttribute("aria-label", "Campo magnético. En 3D, usa las flechas para girar y + o − para acercar o alejar.");
       const spatial = createFieldView(cv, () => is3D);
+      const camera = document.createElement("div");
+      camera.className = "sim-camera btn-row";
+      camera.setAttribute("role", "group");
+      camera.setAttribute("aria-label", "Controles de la vista 3D");
+      camera.innerHTML = `
+        <button type="button" class="btn btn-sm" data-zoom="out" aria-label="Alejar" title="Alejar">−</button>
+        <button type="button" class="btn btn-sm" data-zoom="in" aria-label="Acercar" title="Acercar">+</button>
+        <button type="button" class="btn btn-sm" data-reset>Restablecer vista</button>`;
+      camera.querySelector('[data-zoom="out"]').addEventListener("click", () => spatial.adjustZoom(1 / 1.25));
+      camera.querySelector('[data-zoom="in"]').addEventListener("click", () => spatial.adjustZoom(1.25));
+      camera.querySelector("[data-reset]").addEventListener("click", spatial.reset);
+      stage.appendChild(camera);
+
+      function syncView() {
+        camera.hidden = !is3D;
+        cv.canvas.tabIndex = is3D ? 0 : -1;
+        cv.canvas.style.cursor = is3D ? "grab" : "default";
+        cv.canvas.style.touchAction = is3D ? "none" : "";
+        cv.canvas.setAttribute("aria-label", is3D
+          ? "Campo magnético en 3D. Arrastra o usa las flechas para girar. Usa + y − para acercar y alejar."
+          : "Campo magnético en el plano XY");
+      }
+      syncView();
 
       addRealCases(controls, "magnetic", (values) => {
         source = values.source; current = values.current; moment = values.moment;
@@ -163,14 +184,14 @@
             { point: [-end * direction, 0, 0], color: "#3b6ef6", text: "S" });
         }
         setReadout(handle.ro.B, fmtSI(V3.len(field(sample)), 3));
-        model = { lines, markers, caption, flat: !is3D };
+        model = { lines, markers, caption: (is3D ? "3D · " : "2D · ") + caption,
+          flat: !is3D, span: source === "wire" ? [12, 12] : [18, 14] };
         dirty = false;
       }
 
       let raf;
       function render() {
         if (dirty) rebuild();
-        cv.canvas.style.cursor = is3D ? "grab" : "default";
         spatial.draw(model);
         raf = requestAnimationFrame(render);
       }
@@ -242,7 +263,7 @@
           }
           markers.push({ point: [2.4, 0, 3.1], color: "#3b6ef6", text: "B" });
         }
-        model = { lines, markers, triangles: [[0, 1, 2], [0, 2, 3]].map((face) => ({
+        model = { lines, markers, span: [10, 9], gridRadius: 4, triangles: [[0, 1, 2], [0, 2, 3]].map((face) => ({
           points: face.map((index) => corners[index]), color: "rgba(13,148,136,0.33)",
         })), caption: "Campo B (azul) · superficie (verde) · normal (morada)" };
         const result = uniformMagneticFlux(field, area, angle);
@@ -345,10 +366,10 @@
           }
         }
         ctx.fillStyle = getComputedStyle(stage).getPropertyValue("--text-dim");
-        ctx.font = "600 12px Inter, sans-serif";
+        ctx.font = "600 14px system-ui, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText("B " + (B > 0 ? "⊙ " : B < 0 ? "⊗ " : "") + "= " + fmt(Math.abs(B), 4) + " T   ·   E = " + fmt(E, 2) + " V/m", 14, 24);
-        if (lengthScale !== 1) ctx.fillText("Vista en milímetros · animación ralentizada", 14, 44);
+        ctx.fillText("B " + (B > 0 ? "⊙ " : B < 0 ? "⊗ " : "") + "= " + fmt(Math.abs(B), 4) + " T   ·   E = " + fmt(E, 2) + " V/m", 14, 24, cv.cssW - 28);
+        if (lengthScale !== 1) ctx.fillText("Vista en milímetros · animación ralentizada", 14, 44, cv.cssW - 28);
 
         const qm = sim?.qm ?? sign * qmMag;
         const [currentVx, currentVy] = sim?.vel ?? [vx, 0];
@@ -377,7 +398,7 @@
             for (let i = 1; i < n; i++) {
               const a = i / n;
               ctx.strokeStyle = `rgba(124,91,255,${0.15 + 0.75 * a})`;
-              ctx.lineWidth = 1 + 1.4 * a;
+              ctx.lineWidth = 1.6 + 2 * a;
               ctx.beginPath();
               const [x0, y0] = particleToScreen(sim.trail[i - 1]);
               const [x1, y1] = particleToScreen(sim.trail[i]);
@@ -385,7 +406,7 @@
             }
             const [px, py] = particleToScreen(sim.pos);
             ctx.fillStyle = qm > 0 ? "#e5484d" : "#3b6ef6";
-            ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
           }
         }

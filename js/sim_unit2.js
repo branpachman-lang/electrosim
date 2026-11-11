@@ -61,6 +61,7 @@
       ]);
 
       const cv = createCanvas(stage);
+      cv.canvas.setAttribute("aria-label", "Placas del capacitor, campo eléctrico y separación");
 
       addRealCases(controls, "capacitor", (values) => {
         A = values.A; d = values.d; er = values.er; Vv = values.V;
@@ -77,23 +78,23 @@
         ctx.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
 
-        // mapping
-        const plateH = Math.min(H * 0.8, 40 + A * 260); // area -> height
-        const gap = Math.min(W * 0.6, 20 + d * 26);     // d (mm) -> gap px
-        const cx = W / 2;
-        const cy = H / 2;
+        ctx.save();
+        fitDiagram(ctx, 0, 0, W, H, 400, 330);
+        // Schematic proportions exaggerate the gap so it remains visible.
+        const plateH = 118 + Math.sqrt(A) * 86;
+        const gap = 116 + d * 16;
+        const cx = 200, cy = 155;
         ctx.fillStyle = palette.ink;
-        ctx.font = "600 14px system-ui, sans-serif";
+        ctx.font = "600 18px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(isolatedCharge === null ? "Conectado · voltaje fijo" : "Aislado · carga fija", cx, 26);
 
         // dielectric material between plates
-        const dielW = gap;
         ctx.fillStyle = er > 1 ? "rgba(124,91,255,0.18)" : "rgba(128,140,155,0.06)";
-        ctx.fillRect(cx - gap / 2, cy - plateH / 2 - 20, dielW, plateH + 40);
+        ctx.fillRect(cx - gap / 2, cy - plateH / 2 - 20, gap, plateH + 40);
 
         // plates
-        const plateW = 14;
+        const plateW = 20;
         const grad1 = ctx.createLinearGradient(cx - gap / 2 - plateW, 0, cx - gap / 2, 0);
         grad1.addColorStop(0, "#b02a30"); grad1.addColorStop(1, "#e5484d");
         ctx.fillStyle = grad1;
@@ -106,7 +107,7 @@
 
         // plate labels
         ctx.fillStyle = POS;
-        ctx.font = "700 15px Inter, sans-serif";
+        ctx.font = "700 20px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(voltage > 0 ? "+" : "0", cx - gap / 2 - plateW / 2, cy - plateH / 2 - 12);
         ctx.fillStyle = NEG;
@@ -114,27 +115,27 @@
 
         // electric field arrows (uniform) between plates
         const nArrows = Math.max(2, Math.floor(plateH / 46));
-        ctx.strokeStyle = "rgba(120,140,170,0.8)";
-        ctx.fillStyle = "rgba(120,140,170,0.8)";
-        ctx.lineWidth = 1.6;
-        const arrowLen = gap * 0.7;
+        ctx.strokeStyle = palette.muted;
+        ctx.fillStyle = palette.muted;
+        ctx.lineWidth = 2;
+        const arrowLen = gap - 24;
         for (let i = 0; voltage > 0 && i < nArrows; i++) {
           const ay = cy - plateH / 2 + plateH * (i + 1) / (nArrows + 1);
-          const ax0 = cx - gap / 2 + 4;
+          const ax0 = cx - gap / 2 + 12;
           ctx.beginPath();
           ctx.moveTo(ax0, ay);
           ctx.lineTo(ax0 + arrowLen, ay);
           ctx.stroke();
           ctx.beginPath();
           ctx.moveTo(ax0 + arrowLen, ay);
-          ctx.lineTo(ax0 + arrowLen - 6, ay - 3.4);
-          ctx.lineTo(ax0 + arrowLen - 6, ay + 3.4);
+          ctx.lineTo(ax0 + arrowLen - 9, ay - 5);
+          ctx.lineTo(ax0 + arrowLen - 9, ay + 5);
           ctx.closePath();
           ctx.fill();
         }
 
         // dimension labels below plates (no overlap)
-        ctx.font = "500 12px JetBrains Mono, monospace";
+        ctx.font = "600 17px system-ui, sans-serif";
         ctx.textAlign = "center";
         const dY = cy + plateH / 2 + 22;
         // d dimension line with arrowheads
@@ -149,8 +150,9 @@
         ctx.moveTo(cx - gap / 2, dY); ctx.lineTo(cx - gap / 2 + 7, dY - 3.5); ctx.lineTo(cx - gap / 2 + 7, dY + 3.5); ctx.closePath(); ctx.fill();
         ctx.beginPath();
         ctx.moveTo(cx + gap / 2, dY); ctx.lineTo(cx + gap / 2 - 7, dY - 3.5); ctx.lineTo(cx + gap / 2 - 7, dY + 3.5); ctx.closePath(); ctx.fill();
-        ctx.fillText("d = " + d.toFixed(1) + " mm", cx, dY + 15);
-        ctx.fillText("A = " + A.toFixed(2) + " m²   ·   εᵣ = " + er, cx, dY + 32);
+        ctx.fillText("d = " + d.toFixed(1) + " mm", cx, dY + 20);
+        ctx.fillText("A = " + A.toFixed(2) + " m²   ·   εᵣ = " + er, cx, dY + 43);
+        ctx.restore();
 
         // results
         setReadout(handle.ro.C, fmtSI(capacitance, 2));
@@ -205,6 +207,7 @@
       ]);
 
       const cv = createCanvas(stage);
+      cv.canvas.setAttribute("aria-label", "Capacitor y barra de energía almacenada");
 
       addRealCases(controls, "energy", (values) => {
         C = values.C; Vv = values.V;
@@ -222,8 +225,10 @@
         const U = 0.5 * C_F * Vv * Vv;
 
         // capacitor symbol + charge gauge
-        const cx = W / 2;
-        const cy = H / 2 - 40;
+        ctx.save();
+        fitDiagram(ctx, 0, 0, W, H, 360, 302);
+        const cx = 180;
+        const cy = 118;
         // plates
         ctx.strokeStyle = palette.ink;
         ctx.lineWidth = 4;
@@ -239,15 +244,15 @@
         ctx.fillRect(cx - 58, cy - 76, 116, 152);
         // voltage label
         ctx.fillStyle = palette.ink;
-        ctx.font = "700 15px Inter, sans-serif";
+        ctx.font = "700 19px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("+", cx - 95, cy - 86);
         ctx.fillText("−", cx + 95, cy - 86);
 
         // energy bar
-        const barY = cy + 140;
-        const barW = Math.min(W - 120, 460);
-        const bx = (W - barW) / 2;
+        const barY = 250;
+        const barW = 320;
+        const bx = cx - barW / 2;
         ctx.strokeStyle = palette.grid;
         ctx.lineWidth = 2;
         ctx.fillStyle = palette.surface;
@@ -264,9 +269,10 @@
         ctx.fill();
 
         ctx.fillStyle = palette.muted;
-        ctx.font = "600 12.5px Inter, sans-serif";
+        ctx.font = "600 16px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("Energía almacenada · escala 0–125 J", cx, barY - 12);
+        ctx.restore();
 
         setReadout(handle.ro.Q, fmtSI(Q, 2));
         setReadout(handle.ro.U, fmtSI(U, 2));
@@ -328,13 +334,13 @@
         const seriesPath = '<path d="M65 82h118m14 0h112m14 0h97v143H65M183 61v42m14-42v42m112-42v42m14-42v42"/>';
         const parallelPath = '<path d="M65 82h355M65 225h355M237 82v64m0 12v67M420 82v64m0 12v67m-204-79h42m-42 12h42m141-12h42m-42 12h42"/>';
         diagram.innerHTML = `
-          <svg viewBox="0 0 500 285" role="img" aria-label="Dos capacitores conectados en ${series ? "serie" : "paralelo"}">
+          <svg viewBox="15 40 470 240" role="img" aria-label="Dos capacitores conectados en ${series ? "serie" : "paralelo"}">
             <title>Capacitores en ${series ? "serie" : "paralelo"}</title>
             <g class="capacitor-wires">${source}${series ? seriesPath : parallelPath}</g>
             <text x="89" y="143">+</text><text x="89" y="170">−</text>
             <text x="124" y="158">${voltage} V</text>
-            <text x="${series ? 190 : 237}" y="${series ? 128 : 125}">C₁ · ${c1} µF</text>
-            <text x="${series ? 316 : 420}" y="${series ? 128 : 125}">C₂ · ${c2} µF</text>
+            <text x="${series ? 190 : 237}" y="${series ? 128 : 68}">C₁ · ${c1} µF</text>
+            <text x="${series ? 316 : 420}" y="${series ? 128 : 68}">C₂ · ${c2} µF</text>
             <text class="capacitor-caption" x="250" y="263">${series ? "Q₁ = Q₂  ·  V₁ + V₂ = V de la fuente" : "V₁ = V₂  ·  Q total = Q₁ + Q₂"}</text>
           </svg>`;
         for (const [key, value] of Object.entries({ eq: equivalent * 1e6, energy: energy * 1e6,

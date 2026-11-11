@@ -148,7 +148,7 @@ body {
 }
 .sim-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 370px;
+  grid-template-columns: minmax(0, 1fr) clamp(310px, 28vw, 370px);
   gap: 18px;
   align-items: start;
 }
@@ -172,6 +172,12 @@ body {
   box-shadow: var(--shadow);
 }
 .sim-stage canvas { display: block; width: 100%; height: 100%; }
+.sim-camera {
+  position: absolute;
+  inset-inline-start: 12px;
+  bottom: 12px;
+}
+.sim-camera .btn { min-width: 44px; min-height: 44px; }
 .capacitor-diagram {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -181,8 +187,8 @@ body {
 }
 .capacitor-diagram svg { display: block; width: 100%; height: 100%; }
 .capacitor-wires { fill: none; stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
-.capacitor-diagram text { fill: var(--text); text-anchor: middle; font: 600 17px var(--font-sans); }
-.capacitor-diagram .capacitor-caption { fill: var(--text-dim); }
+.capacitor-diagram text { fill: var(--text); text-anchor: middle; font: 600 20px var(--font-sans); }
+.capacitor-diagram .capacitor-caption { fill: var(--text-dim); font-size: 18px; }
 .controls {
   display: flex;
   flex-direction: column;
@@ -421,11 +427,19 @@ input[type="range"]::-moz-range-thumb {
 .lab-part { color: var(--text); cursor: pointer; }
 .lab-part:hover, .lab-part.chosen { color: var(--accent); }
 .lab-schematic.is-removing .lab-part:hover { color: var(--red); }
-.lab-part path, .lab-part circle { stroke: currentColor; fill: var(--bg-canvas); stroke-width: 2; }
+.lab-part path, .lab-part circle { stroke: currentColor; fill: var(--bg-canvas); stroke-width: 2.5; }
 .lab-part .lab-hit { stroke: transparent; stroke-width: 24; pointer-events: stroke; }
+.lab-part .lab-led-glow {
+  fill: #ff6749;
+  stroke: none;
+  opacity: calc(var(--led-glow, 0) * 0.55);
+  pointer-events: none;
+}
+.lab-part .lab-rotor { fill: none; }
+.lab-brightness { width: 100%; height: 18px; }
 .lab-part text, .lab-polarity {
   fill: currentColor;
-  font: 600 12px var(--font-mono);
+  font: 600 15px var(--font-mono);
   paint-order: stroke;
   stroke: var(--bg-canvas);
   stroke-width: 4px;
@@ -457,7 +471,7 @@ input[type="range"]::-moz-range-thumb {
   text-align: left;
 }
 .lab-chart { max-height: 270px; }
-.lab-chart text { fill: var(--text-dim); font: 13px var(--font-mono); }
+.lab-chart text { fill: var(--text-dim); font: 16px var(--font-mono); }
 .lab-gridline { stroke: var(--border-strong); }
 .lab-chart polyline { fill: none; stroke: var(--accent); stroke-width: 2.5; }
 @media (max-width: 1050px) {
@@ -506,7 +520,7 @@ input[type="range"]::-moz-range-thumb {
   .site-header { grid-template-columns: minmax(0, 1fr) auto; }
   .site-header .nav { grid-row: 2; grid-column: 1 / -1; justify-content: flex-start; }
 }
-@media (max-width: 850px) {
+@media (max-width: 950px) {
   .sim-grid { grid-template-columns: minmax(0, 1fr); }
   .content > .sim-grid { height: auto; grid-template-rows: auto auto; }
   .content > .sim-grid > :is(.sim-stage, .capacitor-diagram) { height: max(400px, 100cqh); }

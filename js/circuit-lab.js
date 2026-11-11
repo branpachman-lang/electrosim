@@ -9,6 +9,8 @@
     C: { name: "Capacitor", unit: "µF", value: 1000, min: 0.001, max: 1e6, factor: 1e-6 },
     V: { name: "Fuente V", unit: "V", value: 9, min: -1000, max: 1000 },
     I: { name: "Fuente I", unit: "mA", value: 10, min: -10000, max: 10000, factor: 1e-3 },
+    LED: { name: "LED", label: "Caída directa", unit: "V", value: 2, min: 0.5, max: 5 },
+    M: { name: "Motor CC", label: "Resistencia del bobinado", unit: "Ω", value: 30, min: 1, max: 1000 },
     S: { name: "Interruptor" },
     W: { name: "Cable" },
     AM: { name: "Amperímetro" },
@@ -22,8 +24,13 @@
     C: '<path d="M-18 0h14m8 0h14M-4-12v24M4-12v24"/>',
     V: '<circle r="15"/><path d="M-18 0h3m30 0h3M-11 0h8m-4-4v8M4 0h7"/>',
     I: '<circle r="15"/><path d="M-18 0h3m30 0h3M-8 0H8m-5-5 5 5-5 5"/>',
+    LED: '<circle class="lab-led-glow" r="23"/><path d="M-18 0h10m16 0h10M8-9V9"/><path class="lab-led-body" d="M-8-9L8 0-8 9Z"/><path d="M-6-11l5-6m-4 0h4v4m6 2l5-6m-4 0h4v4"/>',
+    M: '<circle r="15"/><path d="M-18 0h3m30 0h3"/><path class="lab-rotor" d="M0 0V-10M0 0L9 5M0 0L-9 5"/>',
     W: '<path d="M-18 0h36"/>',
   };
+  const activityThreshold = global.circuitActivityThresholds;
+  const isLoad = (part) => part && Object.hasOwn(activityThreshold, part.type);
+  const defaultSelection = (parts) => (parts.find(isLoad) ?? parts.find((part) => part.type === "C") ?? parts[0])?.id;
   function validPart(part) {
     if (!part || typeof part.type !== "string" || !Object.hasOwn(types, part.type) ||
       !Number.isSafeInteger(part.id) || part.id < 1 ||
@@ -31,6 +38,8 @@
     const info = types[part.type];
     const value = part.value / (info.factor || 1);
     if (part.type === "S") return typeof part.closed === "boolean";
+    if (part.type === "M" && part.load !== undefined &&
+      (!Number.isFinite(part.load) || part.load < 1 || part.load > 10)) return false;
     return !info.unit || (Number.isFinite(value) && value >= info.min * (info.min > 0 ? 1 - 1e-12 : 1) &&
       value <= info.max * (1 + 1e-12) && (part.type !== "C" || (Number.isFinite(part.initial) && Math.abs(part.initial) <= 1000)));
   }
@@ -45,6 +54,16 @@
     const part = (type, x1, y1, x2, y2, value) =>
       parts.push({ id: parts.length + 1, type, a: node(x1, y1), b: node(x2, y2), value: value ?? 0,
         initial: 0, closed: true });
+    if (name === "led-cap" || name === "motor-cap") {
+      const led = name === "led-cap";
+      part("C", 2, 2, 2, 6, led ? 0.01 : 0.022);
+      parts[0].initial = 5;
+      if (led) part("R", 2, 2, 8, 2, 220);
+      else part("W", 2, 2, 8, 2);
+      part(led ? "LED" : "M", 8, 2, 8, 6, led ? 2 : 30);
+      part("W", 8, 6, 2, 6);
+      return parts;
+    }
     if (name === "discharge") {
       part("C", 2, 2, 2, 6, 220e-6);
       parts[0].initial = 12;
@@ -118,6 +137,8 @@
           <div class="lab-tools">
             <select class="sim-input" data-example aria-label="Circuito de ejemplo">
               <option value="rc">Carga de capacitor RC</option><option value="series">Resistencias en serie</option>
+              <option value="led-cap">LED con capacitor precargado</option>
+              <option value="motor-cap">Motor con capacitor precargado</option>
               <option value="parallel">Resistencias en paralelo</option><option value="mixed">Circuito mixto</option>
               <option value="meters">Amperímetro y voltímetro</option>
               <option value="empty">Circuito vacío</option>
@@ -143,6 +164,7 @@
             <div class="lab-board-head"><h2>Componente</h2><span data-name></span></div>
             <label class="control" data-value-row><span data-unit></span><input class="sim-input" type="number" step="any" data-value></label>
             <label class="control" data-initial-row>Voltaje inicial (V)<input class="sim-input" type="number" min="-1000" max="1000" step="any" data-initial></label>
+            <label class="control" data-motor-load-row>Carga mecánica (×)<input class="sim-input" type="number" min="1" max="10" step="any" data-motor-load></label>
             <label data-switch-row><input type="checkbox" data-switch> Interruptor cerrado</label>
             <div class="btn-row" data-edit-actions>
               <button class="btn btn-sm" data-reverse>Invertir A ↔ B</button>
@@ -159,6 +181,15 @@
               <label class="control">Paso de integración (s)<input class="sim-input" type="number" min="0.000001" max="60" step="any" value="0.01" data-dt></label>
               <p class="hint" data-status role="status"></p>
             </div>
+            <section class="lab-measure" data-activity hidden>
+              <h3 data-activity-state></h3>
+              <div class="readouts">
+                <div class="readout"><span class="readout-label" data-level-label></span><strong class="readout-value" data-level></strong></div>
+                <div class="readout"><span class="readout-label" data-duration-label></span><strong class="readout-value" data-duration></strong></div>
+              </div>
+              <meter class="lab-brightness" min="0" max="100" value="0" aria-label="Brillo relativo" data-brightness></meter>
+              <p class="hint" data-activity-hint></p>
+            </section>
           </aside>
         </div>
         </div>
@@ -171,6 +202,7 @@
           <div class="lab-board-head"><h2 data-chart-title>Osciloscopio</h2>
             <select class="sim-input" data-metric aria-label="Magnitud del osciloscopio">
               <option value="volts">Voltaje</option><option value="amps">Corriente</option><option value="watts">Potencia</option>
+              <option value="brightness" disabled>Brillo relativo</option><option value="speed" disabled>Velocidad del motor</option>
             </select>
           </div>
           <svg class="lab-chart" viewBox="0 0 600 178" role="img" aria-label="Gráfica de la magnitud seleccionada frente al tiempo"></svg>
@@ -181,9 +213,11 @@
       const chart = root.querySelector(".lab-chart"), status = get("status");
       let parts = load();
       let nextId = Math.max(0, ...parts.map((part) => part.id)) + 1;
-      let selected = parts.find((part) => part.type === "C")?.id ?? parts[0]?.id;
+      let selected = defaultSelection(parts);
       let tool = "select", anchor = null, reconnect = null, keyboardNode = null;
       let result, previous, time, samples, running = false, error = "", switchChanged = false;
+      let motorSpeeds = new Map();
+      const activity = new Map();
       let raf, lastFrame, budget = 0;
       let tableKey = null;
 
@@ -261,16 +295,84 @@
         get("name").textContent = part ? name(part) + " · " + info.name : "Sin selección";
         get("value-row").hidden = !info?.unit;
         get("initial-row").hidden = part?.type !== "C";
+        get("motor-load-row").hidden = part?.type !== "M";
         get("switch-row").hidden = part?.type !== "S";
         get("edit-actions").hidden = !part;
         if (info?.unit) {
-          get("unit").textContent = "Valor (" + info.unit + ")";
+          get("unit").textContent = (info.label ?? "Valor") + " (" + info.unit + ")";
           get("value").min = info.min;
           get("value").max = info.max;
           get("value").value = Number((part.value / (info.factor || 1)).toPrecision(12));
         }
         if (part?.type === "C") get("initial").value = part.initial;
+        if (part?.type === "M") get("motor-load").value = part.load ?? 1;
         if (part?.type === "S") get("switch").checked = part.closed;
+      }
+
+      function syncMetric(preferActivity = false) {
+        const part = selectedPart();
+        const metric = get("metric");
+        const specific = part?.type === "LED" ? "brightness" : part?.type === "M" ? "speed" : null;
+        for (const option of metric.options) {
+          if (option.value === "brightness" || option.value === "speed") option.disabled = option.value !== specific;
+        }
+        if (preferActivity && specific) metric.value = specific;
+        else if (metric.selectedOptions[0]?.disabled) metric.value = "volts";
+      }
+
+      function recordActivity(part, reading, dt) {
+        const led = part.type === "LED";
+        const level = led ? reading.brightness : Math.abs(reading.rpm);
+        const threshold = activityThreshold[part.type];
+        const active = level >= threshold;
+        const prior = activity.get(part.id);
+        let since = prior?.since ?? null, duration = prior?.duration ?? null;
+        let angle = prior?.angle ?? 0;
+        if (active !== (prior?.active ?? false)) {
+          const startLevel = prior?.level ?? 0;
+          const crossing = !prior && led ? time : time + dt * (threshold - startLevel) / (level - startLevel);
+          if (active) since = crossing;
+          else { duration = crossing - since; since = null; }
+        }
+        if (active) {
+          duration = time + dt - since;
+          if (!led) angle = (angle + Math.sign(reading.rpm) * Math.min(1080, level * 0.6) * dt) % 360;
+        }
+        activity.set(part.id, { level, active, since, duration, angle });
+      }
+
+      function drawActivity() {
+        const part = selectedPart();
+        for (const load of parts.filter(isLoad)) {
+          const reading = result?.results.get(load.id);
+          const symbol = board.querySelector(`[data-part="${load.id}"]`);
+          if (load.type === "LED") {
+            const level = reading?.brightness ?? 0;
+            symbol.style.setProperty("--led-glow", level < activityThreshold.LED ? 0 : Math.sqrt(Math.min(1, level / 100)));
+          } else {
+            symbol.querySelector(".lab-rotor").setAttribute("transform", `rotate(${activity.get(load.id)?.angle ?? 0})`);
+          }
+        }
+        const panel = get("activity");
+        panel.hidden = !isLoad(part);
+        if (panel.hidden) return;
+        const led = part.type === "LED";
+        const reading = result?.results.get(part.id);
+        const level = led ? reading?.brightness : Math.abs(reading?.rpm ?? NaN);
+        const active = level >= activityThreshold[part.type];
+        const duration = activity.get(part.id)?.duration;
+        get("activity-state").textContent = !reading ? "Sin lectura"
+          : led ? (active ? "LED encendido" : "LED apagado")
+            : (active ? (reading.rpm < 0 ? "Giro inverso" : "Giro directo") : "Motor detenido");
+        get("level-label").textContent = led ? "Brillo relativo" : "Velocidad";
+        get("level").textContent = reading ? fmt(level, led ? 1 : 0) + (led ? " %" : " rpm") : "—";
+        get("duration-label").textContent = led ? "Tiempo encendido" : "Tiempo en giro";
+        get("duration").textContent = time === 0 ? "—" : fmt(duration ?? 0, 2) + " s";
+        get("brightness").hidden = !led;
+        get("brightness").value = Math.min(100, reading?.brightness ?? 0);
+        get("activity-hint").textContent = led
+          ? "100 % a 20 mA. El tiempo cuenta desde 1 % de brillo. El LED conduce de A (ánodo) a B (cátodo)."
+          : "El tiempo cuenta desde 100 rpm. Una mayor carga mecánica aumenta el rozamiento.";
       }
 
       function drawMeasurements() {
@@ -299,13 +401,14 @@
             if (row.cells[j + 1].textContent !== value) row.cells[j + 1].textContent = value;
           });
         });
+        drawActivity();
       }
 
       function drawChart() {
         const part = selectedPart();
-        const metric = get("metric").value, unit = { volts: "V", amps: "A", watts: "W" }[metric];
+        const metric = get("metric").value, unit = { volts: "V", amps: "A", watts: "W", brightness: "%", speed: "rpm" }[metric];
         get("chart-title").textContent = "Osciloscopio" + (part ? " · " + name(part) : "");
-        const series = samples.filter((sample) => sample[metric] !== null);
+        const series = samples.filter((sample) => Number.isFinite(sample[metric]));
         if (series.length < 2) {
           chart.innerHTML = '<text x="300" y="88" text-anchor="middle">Selecciona una rama y simula para ver su evolución.</text>';
           return;
@@ -314,27 +417,37 @@
         const values = series.map((sample) => sample[metric]);
         let min = Math.min(0, ...values), max = Math.max(0, ...values);
         if (max === min) { min -= 1; max += 1; }
-        const x = (t) => 86 + 484 * (t - first) / (last - first);
+        const axisLeft = 106, axisRight = 570;
+        const x = (t) => axisLeft + (axisRight - axisLeft) * (t - first) / (last - first);
         const y = (v) => 140 - 118 * (v - min) / (max - min);
-        const ticks = [min, (min + max) / 2, max].map((v) =>
-          `<path class="lab-gridline" d="M86 ${y(v)}H570"/><text x="77" y="${y(v) + 4}" text-anchor="end">${amount(v, unit)}</text>`).join("");
+        const ticks = [min, (min + max) / 2, max].map((v) => {
+          const label = metric === "speed" || metric === "brightness" ? fmt(v, metric === "speed" ? 0 : 1) + " " + unit : amount(v, unit);
+          return `<path class="lab-gridline" d="M${axisLeft} ${y(v)}H${axisRight}"/><text x="${axisLeft - 9}" y="${y(v) + 4}" text-anchor="end">${label}</text>`;
+        }).join("");
         chart.innerHTML = ticks + `<polyline points="${series.map((p) => x(p.time) + "," + y(p[metric])).join(" ")}"/>
-          <text x="86" y="163">${fmt(first, 3)} s</text><text x="570" y="163" text-anchor="end">${fmt(last, 3)} s</text>`;
+          <text x="${axisLeft}" y="163">${fmt(first, 3)} s</text><text x="${axisRight}" y="163" text-anchor="end">${fmt(last, 3)} s</text>`;
       }
 
       function calculate(dt) {
         try {
-          result = solveCircuit(parts, { dt, previous });
+          result = solveCircuit(parts, { dt, previous, motorSpeeds });
           if (dt) {
             switchChanged = false;
             const part = selectedPart();
             if (time === 0 && part?.type === "C") {
               samples.push({ time: 0, volts: part.initial, amps: null, watts: null });
             }
+            for (const load of parts.filter(isLoad)) recordActivity(load, result.results.get(load.id), dt);
             time += dt;
             previous = result.capacitorVoltages;
+            motorSpeeds = result.motorSpeeds;
             const reading = result.results.get(selected);
-            if (reading) samples.push({ ...reading, time });
+            if (reading) {
+              const sample = { ...reading, time, speed: Math.abs(reading.rpm ?? NaN) };
+              if (isLoad(part) && samples.length > 1 && time - samples.at(-2).time < 0.05) {
+                samples[samples.length - 1] = sample;
+              } else samples.push(sample);
+            }
             if (samples.length > 320) samples.splice(0, samples.length - 320);
           }
           error = "";
@@ -351,6 +464,8 @@
         time = 0;
         switchChanged = false;
         previous = new Map();
+        motorSpeeds = new Map();
+        activity.clear();
         samples = [];
         running = false;
         budget = 0;
@@ -363,6 +478,7 @@
         try { localStorage.setItem(key, JSON.stringify(parts)); } catch (error) { /* Optional storage. */ }
         drawBoard();
         if (redrawInspector) drawInspector();
+        syncMetric();
         if (restart) reset();
         else {
           if (time === 0) calculate(0);
@@ -374,6 +490,7 @@
         if (selected !== id) {
           selected = id;
           samples = [];
+          syncMetric(true);
         }
         tool = "select"; anchor = null; reconnect = null;
         drawBoard(); drawInspector(); drawMeasurements(); drawChart();
@@ -487,10 +604,17 @@
         switchChanged = time > 0;
         updateCircuit({ restart: false, redrawInspector: false });
       });
+      get("motor-load").addEventListener("change", (event) => {
+        const input = event.currentTarget;
+        if (!input.validity.valid || !Number.isFinite(input.valueAsNumber)) { drawInspector(); return; }
+        selectedPart().load = input.valueAsNumber;
+        updateCircuit({ redrawInspector: false });
+      });
       function replaceParts(replacement) {
         parts = replacement;
         nextId = Math.max(0, ...parts.map((part) => part.id)) + 1;
-        selected = parts.find((part) => part.type === "C")?.id ?? parts[0]?.id;
+        selected = defaultSelection(parts);
+        syncMetric(true);
         tool = "select"; anchor = null; reconnect = null; keyboardNode = null;
         updateCircuit();
       }
@@ -568,6 +692,7 @@
 
       drawBoard();
       drawInspector();
+      syncMetric(true);
       reset();
       raf = requestAnimationFrame(frame);
       return () => { cancelAnimationFrame(raf); root.remove(); };

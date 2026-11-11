@@ -615,14 +615,14 @@
           const [x, y] = toS(point);
           ctx.fillStyle = color;
           ctx.strokeStyle = palette.surface; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.arc(x, y, active === name ? 9 : 6, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.arc(x, y, active === name ? 11 : 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
           if (active === name && Math.hypot(e[0], e[1]) > 1e-9) {
             drawArrow(ctx, x, y, Math.atan2(-e[1], e[0]), 35, color, 2.2);
           }
           ctx.fillStyle = palette.ink;
-          ctx.font = "600 13px system-ui, sans-serif";
+          ctx.font = "700 16px system-ui, sans-serif";
           ctx.textAlign = "left";
-          ctx.fillText(name, x + 11, y - 9);
+          ctx.fillText(name, x + 13, y - 11);
         }
         const em = V3.len(e);
         setReadout(handle.work.a, fmtSI(va, 2));
@@ -805,7 +805,7 @@
             for (let i = 1; i < n; i++) {
               const a = i / n;
               ctx.strokeStyle = `rgba(232,80,120,${0.15 + 0.7 * a})`;
-              ctx.lineWidth = 1 + 1.4 * a;
+              ctx.lineWidth = 1.6 + 2 * a;
               ctx.beginPath();
               const [x0, y0] = toS(sim.trail[i - 1]);
               const [x1, y1] = toS(sim.trail[i]);
@@ -821,7 +821,7 @@
             setReadout(handle.ro.v, vm.toFixed(2));
             setReadout(handle.ro.t, sim.time.toFixed(3));
             ctx.fillStyle = chargeColor(sim.qm);
-            ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI * 2); ctx.fill();
             ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
           }
         }

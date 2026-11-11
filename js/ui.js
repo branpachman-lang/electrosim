@@ -292,6 +292,13 @@
     };
   }
 
+  // Fit a diagram's drawing coordinates inside a canvas region.
+  function fitDiagram(ctx, x, y, width, height, designWidth, designHeight) {
+    const scale = Math.min(width / designWidth, height / designHeight);
+    ctx.translate(x + (width - scale * designWidth) / 2, y + (height - scale * designHeight) / 2);
+    ctx.scale(scale, scale);
+  }
+
   function addRealCases(container, moduleId, apply, loadOnSelect = true) {
     const examples = global.RealCases[moduleId];
     const panel = document.createElement("section");
@@ -382,6 +389,7 @@
   global.buildControls = buildControls;
   global.setReadout = setReadout;
   global.canvasPalette = canvasPalette;
+  global.fitDiagram = fitDiagram;
   global.addRealCases = addRealCases;
   global.makeViewport = makeViewport;
 })(window);
