@@ -2,6 +2,8 @@
 
 Abre [ElectroSim en GitHub Pages](https://branpachman-lang.github.io/electrosim/) o abre `index.html` en Chrome, Edge o Firefox para usarlo sin conexión. La barra superior abre **Inicio** y las tarjetas de cada unidad. En **Inicio** está la guía rápida de uso.
 
+En cualquier simulador, **Exportar imagen** guarda un PNG de la vista actual, los parámetros y las lecturas. En el taller incluye las mediciones por componente y el osciloscopio si ya hay datos en la gráfica.
+
 ## Cobertura del producto final
 
 | Unidad | Experimento |

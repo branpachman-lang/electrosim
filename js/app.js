@@ -13,6 +13,9 @@
   const themeToggle = document.getElementById("themeToggle");
   const themeLabel = document.getElementById("themeLabel");
   const homeBtn = document.getElementById("homeBtn");
+  const exportActions = document.getElementById("exportActions");
+  const exportButton = document.getElementById("exportImage");
+  const exportStatus = document.getElementById("exportStatus");
 
   const modules = window.SimModules || [];
 
@@ -68,7 +71,12 @@
   }
 
   let currentCleanup = null;
+  let currentExport = null;
   function unmount() {
+    currentExport = null;
+    exportActions.hidden = true;
+    exportButton.disabled = false;
+    exportStatus.textContent = "";
     if (currentCleanup) {
       try { currentCleanup(); } catch (error) { console.error("Error al cerrar el módulo", error); }
       currentCleanup = null;
@@ -87,7 +95,10 @@
     markActive(mod.unit);
 
     try {
-      currentCleanup = mod.mount(content) || null;
+      const mounted = mod.mount(content);
+      currentCleanup = typeof mounted === "function" ? mounted : mounted?.cleanup;
+      currentExport = { mod, details: mounted?.exportData };
+      exportActions.hidden = false;
     } catch (e) {
       console.error("Error mounting module", id, e);
       content.innerHTML = '<div style="padding:30px;color:var(--text-dim);">Error al cargar el módulo. Revisa la consola.</div>';
@@ -95,6 +106,25 @@
 
     moduleTitle.focus({ preventScroll: true });
   }
+
+  exportButton.addEventListener("click", async () => {
+    const capture = currentExport;
+    if (!capture || exportButton.disabled) return;
+    exportButton.disabled = true;
+    exportStatus.textContent = "";
+    try {
+      // Let the simulator's scheduled draw apply the latest input changes.
+      await new Promise(requestAnimationFrame);
+      if (capture !== currentExport) return;
+      await exportSimulationImage(content, capture.mod, capture.details?.());
+      if (capture === currentExport) exportStatus.textContent = "Descarga del PNG iniciada.";
+    } catch (error) {
+      console.error("Error al exportar la imagen", error);
+      if (capture === currentExport) exportStatus.textContent = "No se pudo exportar la imagen. Intenta otra vez.";
+    } finally {
+      if (capture === currentExport) exportButton.disabled = false;
+    }
+  });
 
   function showWelcome(unit = null) {
     unmount();

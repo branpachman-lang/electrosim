@@ -695,7 +695,21 @@
       syncMetric(true);
       reset();
       raf = requestAnimationFrame(frame);
-      return () => { cancelAnimationFrame(raf); root.remove(); };
+      return {
+        cleanup() { cancelAnimationFrame(raf); root.remove(); },
+        exportData() {
+          const rows = parts.filter((part) => part.type === "C" || isLoad(part)).map((part) => {
+            const reading = result?.results.get(part.id);
+            const tracked = activity.get(part.id);
+            const duration = time && isLoad(part) ? fmt(tracked?.duration ?? 0, 2) + " s" : "—";
+            if (part.type === "C") return [name(part), "Voltaje inicial · " + fmt(part.initial, 3) + " V", "—", "—"];
+            if (part.type === "LED") return [name(part), "Ánodo A · cátodo B", reading ? fmt(reading.brightness, 1) + " % de brillo" : "—", duration];
+            return [name(part), "Carga mecánica · ×" + (part.load ?? 1), reading ? fmt(reading.rpm, 0) + " rpm" : "—", duration];
+          });
+          return { tables: [{ title: "Capacitores, LEDs y motores",
+            columns: ["Componente", "Ajuste", "Lectura actual", "Tiempo activo"], rows }] };
+        },
+      };
     },
   });
 })(window);

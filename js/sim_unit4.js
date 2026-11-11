@@ -336,7 +336,7 @@
       ]);
 
       function launch() {
-        sim = { pos: [-3 * lengthScale, 0], vel: [vx, 0], trail: [], qm: sign * qmMag, time: 0, stopped: false };
+        sim = { pos: [-3 * lengthScale, 0], vel: [vx, 0], trail: [], qm: sign * qmMag, initialSpeed: vx, time: 0, stopped: false };
         sim.trail.push([sim.pos[0], sim.pos[1]]);
       }
 
@@ -421,7 +421,17 @@
       raf = requestAnimationFrame(loop);
       window.addEventListener("resize", cv.resize);
 
-      return function cleanup() { cancelAnimationFrame(raf); window.removeEventListener("resize", cv.resize); cv.destroy(); root.remove(); };
+      return {
+        cleanup() { cancelAnimationFrame(raf); window.removeEventListener("resize", cv.resize); cv.destroy(); root.remove(); },
+        exportData() {
+          return {
+            readings: sim ? [
+              ["Carga específica al lanzar", fmt(sim.qm, 2) + " C/kg"],
+              ["Rapidez al lanzar", fmt(sim.initialSpeed, 2) + " m/s"],
+            ] : [],
+          };
+        },
+      };
     },
   });
 })(window);

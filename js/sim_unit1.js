@@ -30,6 +30,14 @@
     charges.splice(0, charges.length, ...values.map((charge) => ({ ...charge })));
   }
 
+  function chargeTable() {
+    return {
+      title: "Cargas del sistema",
+      columns: ["Carga", "Valor (nC)", "X (m)", "Y (m)", "Z (m)"],
+      rows: charges.map(({ x, y, z = 0, q }, i) => ["Q" + (i + 1), fmt(q, 2), fmt(x, 3), fmt(y, 3), fmt(z, 3)]),
+    };
+  }
+
   /* ---------- Shared 2D builders ---------- */
   function buildFieldLines(charges, view, perCharge) {
     const lines = [];
@@ -192,7 +200,7 @@
       const view = { w: 7.5, h: 5.2 };
       let mode = "2d";
       let showLines = true, showEqui = true, showVectors = false, vecDensity = 18;
-      let selected = charges.length ? 0 : null, hover = null;
+      let selected = charges.length ? 0 : null, hover = null, lastProbe = null;
       let dragging = false, dragIndex = -1;
       let staticDirty = true, surfaceLevel = 9;
       let fieldLines = [], equiSegs = [], vectors = [];
@@ -334,6 +342,7 @@
         }
 
         if (hover) {
+          lastProbe = hover;
           const e = electricField2D([hover.x, hover.y], charges);
           const v = potential2D([hover.x, hover.y], charges);
           setReadout(handle.ro.eMag, fmtSI(V3.len(electricField3D([hover.x, hover.y, 0], charges)), 3));
@@ -353,6 +362,7 @@
 
       function setMode(nextMode) {
         mode = nextMode;
+        lastProbe = null;
         scene = null;
         cv.canvas.style.cursor = mode === "3d" ? "grab" : "crosshair";
         cv.canvas.tabIndex = mode === "3d" ? 0 : -1;
@@ -466,7 +476,7 @@
       addRealCases(controls, "charges", (values) => {
         replaceCharges(values.charges);
         selected = 0;
-        hover = { x: values.probe[0], y: values.probe[1] };
+        hover = lastProbe = { x: values.probe[0], y: values.probe[1] };
         syncSelected();
         staticDirty = true;
         rebuild3D();
@@ -481,12 +491,15 @@
       }
       loop();
 
-      return function cleanup() {
-        cancelAnimationFrame(raf);
-
-        cv.destroy();
-
-        root.remove();
+      return {
+        cleanup() { cancelAnimationFrame(raf); cv.destroy(); root.remove(); },
+        exportData() {
+          return {
+            tables: [chargeTable()],
+            readings: lastProbe ? [["Posición de la sonda (X, Y, Z)",
+              "(" + fmt(lastProbe.x, 3) + "; " + fmt(lastProbe.y, 3) + "; 0) m"]] : [],
+          };
+        },
       };
     },
   });
@@ -670,7 +683,15 @@
       function loop() { render(); raf = requestAnimationFrame(loop); }
       loop();
 
-      return function cleanup() { cancelAnimationFrame(raf); cv.destroy(); root.remove(); };
+      return {
+        cleanup() { cancelAnimationFrame(raf); cv.destroy(); root.remove(); },
+        exportData() {
+          const coordinates = Object.entries(probes).map(([name, { x, y, z }]) => [name, fmt(x, 3), fmt(y, 3), fmt(z, 3)]);
+          return {
+            tables: [chargeTable(), { title: "Posiciones de las sondas", columns: ["Punto", "X (m)", "Y (m)", "Z (m)"], rows: coordinates }],
+          };
+        },
+      };
     },
   });
 
@@ -728,6 +749,8 @@
           vel: [Math.cos(rad) * speed, Math.sin(rad) * speed],
           trail: [],
           qm,
+          initialSpeed: speed,
+          initialAngle: angle,
           time: 0,
           stopped: false,
         };
@@ -848,7 +871,19 @@
       }
       raf = requestAnimationFrame(loop);
 
-      return function cleanup() { cancelAnimationFrame(raf); cv.destroy(); root.remove(); };
+      return {
+        cleanup() { cancelAnimationFrame(raf); cv.destroy(); root.remove(); },
+        exportData() {
+          return {
+            tables: [chargeTable()],
+            readings: sim ? [
+              ["Carga específica al lanzar", fmt(sim.qm, 1) + " C/kg"],
+              ["Rapidez al lanzar", fmt(sim.initialSpeed, 1) + " m/s"],
+              ["Ángulo al lanzar", fmt(sim.initialAngle, 0) + "°"],
+            ] : [],
+          };
+        },
+      };
     },
   });
 })(window);

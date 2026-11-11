@@ -356,7 +356,10 @@
       }
     }
     function load() {
-      if (select.value !== "") apply(examples[Number(select.value)].params);
+      if (select.value === "") return;
+      const example = examples[Number(select.value)];
+      apply(example.params);
+      panel.dataset.activeCase = example.name;
     }
     select.addEventListener("change", () => {
       showReference();
@@ -365,6 +368,7 @@
     reload.addEventListener("click", load);
     return () => {
       select.value = "";
+      delete panel.dataset.activeCase;
       showReference();
     };
   }
