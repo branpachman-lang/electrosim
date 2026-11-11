@@ -1,0 +1,125 @@
+/* Illustrative applications with independently calculated reference values. */
+(function (global) {
+  "use strict";
+  const single = [{ x: 0, y: 0, z: 0, q: 2, radius: 0.42 }];
+  const dipole = [
+    { x: -1.5, y: 0, z: 0, q: 2, radius: 0.42 },
+    { x: 1.5, y: 0, z: 0, q: -2, radius: 0.42 },
+  ];
+  const ref = (label, key, value, unit) => ({ label, key, value, unit });
+  const cases = {
+    charges: [
+      { name: "Globo con carga estática", description: "Un objeto pequeño con +2 nC se aproxima como una carga puntual. La sonda está a 1 m del objeto.",
+        params: { charges: single, probe: [1, 0, 0] },
+        references: [ref("Potencial a 1 m", "v", 17.975, "V"), ref("Campo a 1 m", "e", 17.975, "V/m")] },
+      { name: "Dos objetos con cargas opuestas", description: "Dos objetos con ±2 nC separados 3 m. Compara el potencial y el campo en el punto medio.",
+        params: { charges: dipole, probe: [0, 0, 0] },
+        references: [ref("Potencial en el centro", "v", 0, "V"), ref("Campo en el centro", "e", 15.9777777778, "V/m")] },
+    ],
+    potential: [
+      { name: "Movimiento de una carga cerca de un objeto", description: "Una carga de prueba de +1 nC se aleja de un objeto de +2 nC, desde 1 m hasta 2 m.",
+        params: { charges: single, A: [1, 0, 0], B: [2, 0, 0], q: 1 },
+        references: [ref("Potencial en A", "va", 17.975, "V"), ref("Potencial en B", "vb", 8.9875, "V"),
+          ref("Trabajo del campo", "work", 8.9875, "nJ")] },
+      { name: "Traslado entre puntos de igual potencial", description: "Una carga se mueve entre dos puntos del plano medio de dos objetos con cargas opuestas. Ambos puntos tienen potencial cero.",
+        params: { charges: dipole, A: [0, 1, 0], B: [0, 2, 0], q: 1 },
+        references: [ref("Diferencia de potencial", "dv", 0, "V"), ref("Trabajo del campo", "work", 0, "nJ")] },
+    ],
+    trajectory: [
+      { name: "Atracción de polvo cargado", description: "Una partícula de 1 ng y −1 pC pasa cerca de un objeto con +2 nC. Se considera únicamente la fuerza eléctrica, con posición inicial (−3; 0,6) m.",
+        params: { charges: single, qm: -1, speed: 3, angle: 0 },
+        references: [ref("Campo inicial", "e", 1.920405982906, "V/m"), ref("Aceleración inicial", "a", 1.920405982906, "m/s²")] },
+      { name: "Repulsión de polvo con igual signo", description: "Una partícula de 1 ng y +1 pC pasa junto al objeto positivo. Compara la desviación con el caso de atracción.",
+        params: { charges: single, qm: 1, speed: 3, angle: 0 },
+        references: [ref("Campo inicial", "e", 1.920405982906, "V/m"), ref("Aceleración inicial", "a", 1.920405982906, "m/s²")] },
+    ],
+    capacitor: [
+      { name: "Sensor capacitivo de separación", description: "Dos placas de 10 × 10 cm separadas 0,5 mm y alimentadas a 5 V. Cambia la distancia para observar la lectura de capacitancia.",
+        params: { A: 0.01, d: 0.5, er: 1, V: 5 },
+        references: [ref("Capacitancia", "c", 177.08, "pF"), ref("Carga", "q", 885.4, "pC"),
+          ref("Campo entre placas", "e", 10000, "V/m")] },
+      { name: "Condensador de laboratorio con aislante", description: "Placas de 0,1 m² con separación de 2 mm y un aislante de permitividad relativa 4. La batería aplica 24 V.",
+        params: { A: 0.1, d: 2, er: 4, V: 24 },
+        references: [ref("Capacitancia", "c", 1.7708, "nF"), ref("Energía", "energy", 0.5099904, "µJ")] },
+    ],
+    energy: [
+      { name: "Reserva de energía de un flash", description: "Un capacitor de 100 µF se carga a 300 V para almacenar la energía de un destello. Se calcula la energía eléctrica disponible antes de las pérdidas.",
+        params: { C: 100, V: 300 },
+        references: [ref("Carga almacenada", "q", 30, "mC"), ref("Energía almacenada", "energy", 4.5, "J")] },
+      { name: "Capacitor de una fuente de 12 V", description: "Un capacitor de 220 µF almacena energía en una alimentación de 12 V. Su descarga puede estudiarse en el taller.",
+        params: { C: 220, V: 12 },
+        references: [ref("Carga almacenada", "q", 2.64, "mC"), ref("Energía almacenada", "energy", 15.84, "mJ")] },
+    ],
+    "capacitor-pair": [
+      { name: "Banco de capacitores en serie", description: "Dos capacitores ideales de 10 µF comparten una fuente de 12 V. El reparto supone capacitores inicialmente descargados.",
+        params: { c1: 10, c2: 10, voltage: 12, series: true },
+        references: [ref("Capacitancia equivalente", "c", 5, "µF"), ref("Voltaje en cada uno", "v1", 6, "V"),
+          ref("Carga en cada uno", "q1", 60, "µC")] },
+      { name: "Capacitores en una alimentación de 5 V", description: "Se conectan 10 µF y 22 µF en paralelo para aumentar la capacitancia disponible en una línea de 5 V.",
+        params: { c1: 10, c2: 22, voltage: 5, series: false },
+        references: [ref("Capacitancia equivalente", "c", 32, "µF"), ref("Carga total", "q", 160, "µC"),
+          ref("Energía total", "energy", 400, "µJ")] },
+    ],
+    circuits: [
+      { name: "Divisor de tensión de 12 V a 4 V", description: "Tres resistencias de 1 kΩ en serie reparten 12 V. El voltaje sobre una de ellas es 4 V cuando la salida tiene una carga despreciable.",
+        params: { mode: "series", V: 12, R1: 1000, R2: 1000, R3: 1000 },
+        references: [ref("Resistencia equivalente", "r", 3000, "Ω"), ref("Corriente total", "i", 4, "mA"),
+          ref("Voltaje en cada resistencia", "v1", 4, "V")] },
+      { name: "Tres cargas en una fuente de 12 V", description: "Cargas resistivas de 120 Ω, 240 Ω y 360 Ω se conectan en paralelo. Cada rama recibe el mismo voltaje.",
+        params: { mode: "parallel", V: 12, R1: 120, R2: 240, R3: 360 },
+        references: [ref("Corriente total", "i", 183.333333333, "mA"), ref("Potencia total", "p", 2.2, "W")] },
+      { name: "Resistencia común y dos cargas", description: "Una resistencia de 100 Ω limita la corriente que llega a dos cargas de 200 Ω y 300 Ω en paralelo.",
+        params: { mode: "mixed", V: 12, R1: 100, R2: 200, R3: 300 },
+        references: [ref("Resistencia equivalente", "r", 220, "Ω"), ref("Corriente total", "i", 54.5454545455, "mA"),
+          ref("Voltaje en las cargas", "v2", 6.54545454545, "V")] },
+    ],
+    ohm: [
+      { name: "Pila de 1,5 V bajo carga", description: "Una pila se representa con 1,5 V y 0,5 Ω de resistencia interna. Alimenta una carga de 10 Ω.",
+        params: { V: 1.5, R: 10, r: 0.5 },
+        references: [ref("Corriente", "i", 142.857142857, "mA"), ref("Voltaje en la carga", "v", 1.42857142857, "V"),
+          ref("Potencia en la carga", "p", 0.204081632653, "W")] },
+      { name: "Carga resistiva alimentada por USB", description: "Una fuente ideal de 5 V alimenta una resistencia de 100 Ω. El valor ilustra una carga de prueba.",
+        params: { V: 5, R: 100, r: 0 },
+        references: [ref("Corriente", "i", 50, "mA"), ref("Potencia en la carga", "p", 0.25, "W")] },
+    ],
+    magnetic: [
+      { name: "Campo alrededor de un cable de alimentación", description: "Un cable recto lleva 10 A. La lectura se toma a 2 cm del eje. El modelo supone un cable largo y considera su campo de forma aislada.",
+        params: { source: "wire", current: 10, moment: 5, distance: 0.02 },
+        references: [ref("Campo a 2 cm", "b", 100, "µT")] },
+      { name: "Medición cerca de un imán", description: "Un imán se aproxima con un momento dipolar de 0,5 A·m². La sonda está sobre su eje a 10 cm del centro.",
+        params: { source: "magnet", current: 5, moment: 0.5, distance: 0.1 },
+        references: [ref("Campo axial a 10 cm", "b", 100, "µT")] },
+    ],
+    "magnetic-flux": [
+      { name: "Marco de captación en el campo terrestre", description: "Un marco de 1 m² recibe un campo uniforme ilustrativo de 50 µT. La normal se alinea inicialmente con el campo.",
+        params: { field: 0.00005, area: 1, angle: 0 },
+        references: [ref("Flujo inicial", "flux", 50, "µWb")] },
+      { name: "Espira inclinada dentro de un electroimán", description: "Una superficie de 1 m² forma 60° entre su normal y un campo uniforme de 0,5 T. Cambia la inclinación para comparar el flujo.",
+        params: { field: 0.5, area: 1, angle: 60 },
+        references: [ref("Flujo", "flux", 0.25, "Wb"), ref("Área proyectada", "area", 0.5, "m²")] },
+    ],
+    lorentz: [
+      { name: "Haz de electrones en un campo magnético", description: "Electrones a 1000 km/s entran perpendicularmente en un campo de 1 mT. La vista usa milímetros y muestra el movimiento ralentizado.",
+        params: { E: 0, B: 0.001, qm: PHY.e / PHY.me, sign: -1, vx: 1e6, lengthScale: 0.001, timeScale: 1e-8 },
+        references: [ref("Radio de la órbita", "radius", 5.68601747815, "mm")] },
+      { name: "Selector de velocidad de un haz", description: "Campos cruzados de 1000 V/m y 1 mT dejan pasar en línea recta a electrones que viajan a 1000 km/s.",
+        params: { E: 1000, B: 0.001, qm: PHY.e / PHY.me, sign: -1, vx: 1e6, lengthScale: 0.001, timeScale: 1e-8 },
+        references: [ref("Velocidad seleccionada", "drift", 1000000, "m/s"), ref("Radio respecto a la deriva", "radius", 0, "mm")] },
+    ],
+    "circuit-lab": [
+      { name: "Divisor de tensión con instrumentos", description: "Una fuente de 12 V alimenta dos resistencias de 1 kΩ. El amperímetro mide la corriente y el voltímetro mide la salida del divisor.",
+        params: { circuit: "divider" },
+        references: [ref("Voltaje de salida", "v", 6, "V"), ref("Corriente", "i", 6, "mA")] },
+      { name: "Retardo RC de un sensor", description: "Una resistencia de 10 kΩ carga un capacitor de 100 µF desde una fuente de 5 V. Pulsa Simular y observa la tensión en el capacitor.",
+        params: { circuit: "sensor" },
+        references: [ref("Constante de tiempo", "tau", 1, "s"), ref("Voltaje a 1 s", "v1", 3.16060279414, "V"),
+          ref("Voltaje final", "final", 5, "V")] },
+      { name: "Descarga de un capacitor de reserva", description: "Un capacitor de 220 µF, inicialmente a 12 V, se descarga por una resistencia de 1 kΩ. El osciloscopio empieza con la energía de reserva almacenada.",
+        params: { circuit: "discharge" },
+        references: [ref("Constante de tiempo", "tau", 0.22, "s"), ref("Voltaje a una constante", "v1", 4.41455329406, "V"),
+          ref("Energía inicial", "energy", 15.84, "mJ")] },
+    ],
+  };
+
+  global.RealCases = cases;
+})(window);
